@@ -1,5 +1,7 @@
 const bcryptjs = require('bcryptjs');
 const db = require('../database/models');
+const { Sequelize } = require("../database/models");
+const Op = Sequelize.Op
 
 const mainController = {
   home: (req, res) => {
@@ -13,18 +15,41 @@ const mainController = {
   },
   bookDetail: (req, res) => {
     // Implement look for details in the database
-    res.render('bookDetail');
+    let idReference = req.params.id;
+    db.Book.findByPk(idReference, {
+      include: [ {association: 'authors'} ]
+    })
+      .then((book) => {
+        res.render("bookDetail", { book});
+    })
+      .catch((error) => console.log(error));
   },
   bookSearch: (req, res) => {
     res.render('search', { books: [] });
   },
   bookSearchResult: (req, res) => {
     // Implement search by title
-    res.render('search');
+    let keyword = req.body.title
+    console.log(keyword)
+    if (keyword.length == 0) {
+      res.render("search", { books: [] });
+    }
+    db.Book.findAll({
+      include: [{ association: "authors" }],
+      where: {
+        title: {
+          [Op.like]: `%${keyword}%`
+        }
+      }
+    })
+      .then((books) => {
+        res.render("search", { books });
+      })
+      .catch((error) => console.log(error));
   },
   deleteBook: (req, res) => {
     // Implement delete book
-    res.render('home');
+    res.render("home");s
   },
   authors: (req, res) => {
     db.Author.findAll()
@@ -35,7 +60,16 @@ const mainController = {
   },
   authorBooks: (req, res) => {
     // Implement books by author
-    res.render('authorBooks');
+    db.Author.findAll({
+      include: [{ association: "books" }],
+      where: {
+        id: req.params.id
+      }
+    })
+    .then((authorBooks) => {
+      res.render("authorBooks", { books: authorBooks[0].books });
+    })
+    .catch((error) => console.log(error));
   },
   register: (req, res) => {
     res.render('register');
@@ -63,11 +97,35 @@ const mainController = {
   },
   edit: (req, res) => {
     // Implement edit book
-    res.render('editBook', {id: req.params.id})
+    let idReference = req.params.id
+    db.Book.findByPk(idReference)
+      .then( book =>{
+        res.render("editBook", { book });
+      } )
   },
   processEdit: (req, res) => {
     // Implement edit book
-    res.render('home');
+    const { title, cover, description }= req.body
+
+    let editedBook = {
+      title,
+      cover,
+      description
+    };
+
+    db.Book.update(editedBook,{
+      where: {
+        id: req.params.id
+      }
+    });
+
+    db.Book.findAll({
+      include: [{ association: "authors" }],
+    })
+      .then((books) => {
+        res.render("home", { books });
+      })
+      .catch((error) => console.log(error));    
   }
 };
 
