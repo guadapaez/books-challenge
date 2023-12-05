@@ -1,7 +1,7 @@
 const bcryptjs = require('bcryptjs');
 const db = require('../database/models');
 const { Sequelize } = require("../database/models");
-const Op = Sequelize.Op
+const Op = Sequelize.Op;
 
 const mainController = {
   home: (req, res) => {
@@ -9,7 +9,7 @@ const mainController = {
       include: [{ association: 'authors' }]
     })
       .then((books) => {
-        res.render('home', { books });
+        res.render("home", { books, message: req.session.message });
       })
       .catch((error) => console.log(error));
   },
@@ -17,15 +17,16 @@ const mainController = {
     // Implement look for details in the database
     let idReference = req.params.id;
     db.Book.findByPk(idReference, {
-      include: [ {association: 'authors'} ]
+      include: [{ association: "authors" }],
     })
       .then((book) => {
-        res.render("bookDetail", { book});
-    })
+        res.render("bookDetail", { book, message: req.session.message });
+      })
+    
       .catch((error) => console.log(error));
   },
   bookSearch: (req, res) => {
-    res.render('search', { books: [] });
+    res.render("search", { books: [] , message: req.session.message });
   },
   bookSearchResult: (req, res) => {
     // Implement search by title
@@ -43,36 +44,49 @@ const mainController = {
       }
     })
       .then((books) => {
-        res.render("search", { books });
+        res.render("search", { books, message: req.session.message });
       })
       .catch((error) => console.log(error));
   },
   deleteBook: (req, res) => {
-    // Implement delete book
-    res.render("home");s
+    db.Book.findAll({
+      include: [{ association: "authors" }],
+      where: {
+        id: {
+          [Op.ne]: req.params.id
+        }
+      }
+    })
+    db.Book.findAll({
+      include: [{ association: "authors" }],
+    })
+    .then( books => {
+      res.render('home', { books, message: req.session.message })
+    } )
+      
+      .catch((error) => console.log(error));
   },
   authors: (req, res) => {
     db.Author.findAll()
       .then((authors) => {
-        res.render('authors', { authors });
+        res.render("authors", { authors, message: req.session.message });
       })
       .catch((error) => console.log(error));
   },
   authorBooks: (req, res) => {
-    // Implement books by author
     db.Author.findAll({
       include: [{ association: "books" }],
       where: {
-        id: req.params.id
-      }
+  id: req.params.id,
+      },
     })
-    .then((authorBooks) => {
-      res.render("authorBooks", { books: authorBooks[0].books });
-    })
-    .catch((error) => console.log(error));
+ .then((authorBooks) => {
+        res.render("authorBooks", { books: authorBooks[0].books, message: req.session.message });
+      })
+      .catch((error) => console.log(error));
   },
   register: (req, res) => {
-    res.render('register');
+    res.render("register", {message: req.session.message});
   },
   processRegister: (req, res) => {
     db.User.create({
@@ -89,19 +103,72 @@ const mainController = {
   },
   login: (req, res) => {
     // Implement login process
-    res.render('login');
+    const cookieValue = req.cookies.usuario
+
+    if(cookieValue){
+      res.render("login", { email: cookieValue , message: req.session.message });
+    }else{
+      res.render("login", { email:"" , message: req.session.message });
+    }
   },
-  processLogin: (req, res) => {
+  
     // Implement login process
-    res.render('home');
+    processLogin: async(req, res) => {
+
+      const userToValidate = {
+        email: req.body.email,
+        password: req.body.password,
+      };
+  
+      if(userToValidate.email.length != 0){
+        res.cookie("usuario", userToValidate.email)
+      }
+  
+      const books = await db.Book.findAll({ include: [{ association: "authors" }]})
+      const userFound = db.User.findOne({
+        where: {
+          email: userToValidate.email,
+        }
+      });
+  
+      userFound.then( user => {
+        if(user){
+          let comparePassword = bcryptjs.compareSync(userToValidate.password, user.Pass);
+          if (comparePassword) {
+            req.session.message = {
+              success: `Usuario ${user.Name} logueado`,
+              rol: `${user.CategoryId }` 
+            }     
+          res.redirect('/')
+          } else {
+            console.log('Datos Incorrectos')
+            req.session.message = {
+              error: `Datos Incorrectos, verifique por favor`
+            }  
+            res.render("login", { email: req.cookies.usuario, message:req.session.message });
+          }
+        }else{
+          req.session.message = {
+            error: `Datos Incorrectos, verifique por favor`
+          }  
+          res.render("login", { email: req.cookies.usuario, message:req.session.message });
+        }
+      })
+  
+  
+    },
+    logout: async(req , res) =>{
+      const books = await db.Book.findAll({ include: [{ association: "authors" }]})
+      req.session.destroy()
+      res.redirect('/')
   },
   edit: (req, res) => {
     // Implement edit book
-    let idReference = req.params.id
-    db.Book.findByPk(idReference)
-      .then( book =>{
-        res.render("editBook", { book });
-      } )
+    let idReference = req.params.id;
+    db.Book.findByPk(idReference).then((book) => {
+      res.render("editBook", { book , message: req.session.message });
+    });
+  
   },
   processEdit: (req, res) => {
     // Implement edit book
@@ -123,7 +190,7 @@ const mainController = {
       include: [{ association: "authors" }],
     })
       .then((books) => {
-        res.render("home", { books });
+        res.redirect('/')
       })
       .catch((error) => console.log(error));    
   }
