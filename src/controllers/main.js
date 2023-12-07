@@ -2,6 +2,9 @@ const bcryptjs = require('bcryptjs');
 const db = require('../database/models');
 const { Sequelize } = require("../database/models");
 const Op = Sequelize.Op;
+const { validationResult } = require('express-validator');
+const session = require('express-session');
+
 
 const mainController = {
   home: (req, res) => {
@@ -88,18 +91,24 @@ const mainController = {
   register: (req, res) => {
     res.render("register", {message: req.session.message});
   },
-  processRegister: (req, res) => {
-    db.User.create({
-      Name: req.body.name,
-      Email: req.body.email,
-      Country: req.body.country,
-      Pass: bcryptjs.hashSync(req.body.password, 10),
-      CategoryId: req.body.category
-    })
-      .then(() => {
-        res.redirect('/');
-      })
-      .catch((error) => console.log(error));
+  processRegister: async (req, res) => {
+    let errors = validationResult(req);
+    if (errors.isEmpty()) {
+      await db.User.create({
+        Name: req.body.name,
+        Email: req.body.email,
+        Country: req.body.country,
+        Pass: bcryptjs.hashSync(req.body.password, 10),
+        CategoryId: req.body.category,
+      });
+      res.redirect('/');
+    } else {
+      return res.render('register', {
+        messageError: errors.mapped(),
+        old: req.body,
+        session: req.session,
+      });
+    }
   },
   login: (req, res) => {
     // Implement login process
@@ -113,54 +122,57 @@ const mainController = {
   },
   
     // Implement login process
-    processLogin: async(req, res) => {
+    
 
-      const userToValidate = {
-        email: req.body.email,
-        password: req.body.password,
-      };
+      processLogin: async(req, res) => {
+
+       const userToValidate = {
+          email: req.body.email,
+          password: req.body.password,
+        };
   
-      if(userToValidate.email.length != 0){
-        res.cookie("usuario", userToValidate.email)
-      }
-  
-      const books = await db.Book.findAll({ include: [{ association: "authors" }]})
-      const userFound = db.User.findOne({
-        where: {
-          email: userToValidate.email,
+        if(userToValidate.email.length != 0){
+          res.cookie("usuario", userToValidate.email)
         }
-      });
   
-      userFound.then( user => {
-        if(user){
-          let comparePassword = bcryptjs.compareSync(userToValidate.password, user.Pass);
-          if (comparePassword) {
-            req.session.message = {
-              success: `Usuario ${user.Name} logueado`,
-              rol: `${user.CategoryId }` 
-            }     
-          res.redirect('/')
-          } else {
-            console.log('Datos Incorrectos')
+        const books = await db.Book.findAll({ include: [{ association: "authors" }]})
+        const userFound = db.User.findOne({
+          where: {
+            email: userToValidate.email,
+          }
+        });
+  
+        userFound.then( user => {
+          if(user){
+            let comparePassword = bcryptjs.compareSync(userToValidate.password, user.Pass);
+            if (comparePassword) {
+              req.session.message = {
+                success: `Welcome ${user.Name}`,
+                rol: `${user.CategoryId }` 
+              }     
+            res.redirect('/')
+            } else {
+              console.log('Datos Incorrectos')
+              req.session.message = {
+                error: `Datos Incorrectos, verifique por favor`
+              }  
+              res.render("login", { email: req.cookies.usuario, message:req.session.message });
+            }
+          }else{
             req.session.message = {
               error: `Datos Incorrectos, verifique por favor`
             }  
             res.render("login", { email: req.cookies.usuario, message:req.session.message });
           }
-        }else{
-          req.session.message = {
-            error: `Datos Incorrectos, verifique por favor`
-          }  
-          res.render("login", { email: req.cookies.usuario, message:req.session.message });
-        }
-      })
+        })
   
   
-    },
-    logout: async(req , res) =>{
-      const books = await db.Book.findAll({ include: [{ association: "authors" }]})
-      req.session.destroy()
-      res.redirect('/')
+      },
+      logout: async(req , res) =>{
+        const books = await db.Book.findAll({ include: [{ association: "authors" }]})
+        req.session.destroy()
+        res.redirect('/')
+        
   },
   edit: (req, res) => {
     // Implement edit book
