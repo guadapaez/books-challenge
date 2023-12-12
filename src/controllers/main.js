@@ -183,28 +183,30 @@ const mainController = {
   
   },
   processEdit: (req, res) => {
-    // Implement edit book
-    const { title, cover, description }= req.body
-
+    const { title, cover, description } = req.body;
+  
     let editedBook = {
       title,
       cover,
       description
     };
-
-    db.Book.update(editedBook,{
+  
+    db.Book.update(editedBook, {
       where: {
         id: req.params.id
       }
-    });
-
-    db.Book.findAll({
-      include: [{ association: "authors" }],
     })
-      .then((books) => {
-        res.redirect('/')
-      })
-      .catch((error) => console.log(error));    
+    .then(() => {
+      return db.Book.findAll({
+        include: [{ association: "authors" }],
+      });
+    })
+    .then((books) => {
+      res.redirect('/');
+    })
+    .catch((error) => {
+      console.log(error);
+    });
   }
 };
 
