@@ -98,7 +98,9 @@
                       icon: 'success',
                       title: '¡Sesión exitosa!',
                       text: 'Bienvenido/a ' + data.user,
-                    });
+                    }).then(() => {
+               window.location.href = '/';
+                      });
                   
                   } else {
                     Swal.fire({

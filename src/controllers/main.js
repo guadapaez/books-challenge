@@ -94,13 +94,29 @@ const mainController = {
   processRegister: async (req, res) => {
     let errors = validationResult(req);
     if (errors.isEmpty()) {
-      await db.User.create({
+      const newUser = {
         Name: req.body.name,
         Email: req.body.email,
         Country: req.body.country,
         Pass: bcryptjs.hashSync(req.body.password, 10),
         CategoryId: req.body.category,
-      });
+      };
+  
+      await db.User.create(newUser);
+  
+      
+      req.session.user = {
+        id: newUser.id, 
+        name: newUser.Name,
+        email: newUser.Email,
+        category: newUser.CategoryId,
+      };
+  
+      req.session.message = {
+        success: `Welcome ${newUser.Name}`,
+        rol: `${newUser.CategoryId}`,
+      };
+  
       res.redirect('/');
     } else {
       return res.render('register', {
