@@ -65,33 +65,62 @@
           </form>
           <script>
             document.addEventListener('DOMContentLoaded', function () {
-               document.getElementById('loginBtn').addEventListener('click', function () {
-                  validateLoginForm();
-               });
+              document.getElementById('loginBtn').addEventListener('click', function () {
+                validateLoginForm();
+              });
             });
-         
+          
             function validateLoginForm() {
-               var email = document.getElementById('email').value;
-               var password = document.getElementById('password').value;
-         
-               if (email.trim() === '' || password.trim() === '') {
-
+              var email = document.getElementById('email').value;
+              var password = document.getElementById('password').value;
+          
+              if (email.trim() === '' || password.trim() === '') {
+                Swal.fire({
+                  icon: 'error',
+                  title: 'Error',
+                  text: 'Por favor, complete todos los campos.',
+                });
+              } else {
+                fetch('/users/login', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    email: email,
+                    password: password,
+                  }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                  if (data.success) {
+                    Swal.fire({
+                      icon: 'success',
+                      title: '¡Sesión exitosa!',
+                      text: 'Bienvenido/a ' + data.user,
+                    });
+                  
+                  } else {
+                    Swal.fire({
+                      icon: 'error',
+                      title: 'Error',
+                      text: data.message,
+                    });
+                  }
+                })
+                .catch(error => {
+                  console.error('Error al realizar la petición:', error);
                   Swal.fire({
-                     icon: 'error',
-                     title: 'Error',
-                     text: 'Por favor, complete todos los campos.',
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Ocurrió un error al procesar la solicitud. Por favor, inténtelo de nuevo.',
                   });
-               } else { 
-                  document.getElementById('loginForm').submit();
-         
-                  Swal.fire({
-                     icon: 'success',
-                     title: '¡Sesión exitosa!',
-                     text: 'Bienvenido/a ' 
-                  });
-               }
+                });
+              }
             }
-         </script>
+          </script>
+          
+          
          
          
   

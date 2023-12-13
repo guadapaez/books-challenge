@@ -124,50 +124,51 @@ const mainController = {
     // Implement login process
     
 
-      processLogin: async(req, res) => {
-
-       const userToValidate = {
-          email: req.body.email,
-          password: req.body.password,
-        };
-  
-        if(userToValidate.email.length != 0){
-          res.cookie("usuario", userToValidate.email)
-        }
-  
-        const books = await db.Book.findAll({ include: [{ association: "authors" }]})
-        const userFound = db.User.findOne({
+    processLogin: async (req, res) => {
+      const userToValidate = {
+        email: req.body.email,
+        password: req.body.password,
+      };
+    
+      if (userToValidate.email.length !== 0) {
+        res.cookie('usuario', userToValidate.email);
+      }
+    
+      try {
+        const userFound = await db.User.findOne({
           where: {
             email: userToValidate.email,
-          }
+          },
         });
-  
-        userFound.then( user => {
-          if(user){
-            let comparePassword = bcryptjs.compareSync(userToValidate.password, user.Pass);
-            if (comparePassword) {
-              req.session.message = {
-                success: `Welcome ${user.Name}`,
-                rol: `${user.CategoryId }` 
-              }     
-            res.redirect('/')
-            } else {
-              console.log('Datos Incorrectos')
-              req.session.message = {
-                error: `Datos Incorrectos, verifique por favor`
-              }  
-              res.render("login", { email: req.cookies.usuario, message:req.session.message });
-            }
-          }else{
+    
+        if (userFound) {
+          const comparePassword = bcryptjs.compareSync(userToValidate.password, userFound.Pass);
+    
+          if (comparePassword) {
             req.session.message = {
-              error: `Datos Incorrectos, verifique por favor`
-            }  
-            res.render("login", { email: req.cookies.usuario, message:req.session.message });
+              success: `Welcome ${userFound.Name}`,
+              rol: `${userFound.CategoryId}`,
+            };
+            res.json({ success: true, user: userFound.Name });
+          } else {
+            console.log('Datos Incorrectos');
+            req.session.message = {
+              error: 'Datos Incorrectos, verifique por favor',
+            };
+            res.json({ success: false, message: 'Datos Incorrectos, verifique por favor' });
           }
-        })
-  
-  
-      },
+        } else {
+          req.session.message = {
+            error: 'Datos Incorrectos, verifique por favor',
+          };
+          res.json({ success: false, message: 'Datos Incorrectos, verifique por favor' });
+        }
+      } catch (error) {
+        console.error('Error en el proceso de inicio de sesión:', error);
+        res.json({ success: false, message: 'Ocurrió un error al procesar la solicitud. Por favor, inténtelo de nuevo.' });
+      }
+    },
+    
       logout: async(req , res) =>{
         const books = await db.Book.findAll({ include: [{ association: "authors" }]})
         req.session.destroy()
